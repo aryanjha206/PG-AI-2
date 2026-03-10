@@ -14,6 +14,7 @@ if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import psycopg
@@ -33,7 +34,7 @@ NEON_DB_URL = "postgresql://neondb_owner:npg_5RdSgjpHCQ6P@ep-sweet-thunder-a1rqx
 
 class Config:
     BANNER = "PG AI Query Engine v3.2.0"
-    MODEL = "gpt-4o" # Map to Pollinations gpt-4o equivalent
+    MODEL = "openai" # Map to Pollinations supported model
     BASE_URL = "https://text.pollinations.ai/v1"
 
 # ═══════════════════════════════════════════════════════════════
@@ -100,17 +101,22 @@ llm = OpenAIChatModel(
     )
 )
 
+class SQLResponse(BaseModel):
+    sql: str = Field(description="The valid PostgreSQL SELECT query.")
+    explanation: str = Field(description="A brief explanation of how the query works.")
+    confidence: float = Field(default=1.0, description="Confidence score 0-1.")
+    suggested_visualization: str = Field(default="table", description="Visualization type.")
+
 sql_agent = Agent(
     llm,
+    output_type=SQLResponse,
     system_prompt=(
         "You are 'PG AI', a state-of-the-art PostgreSQL Data Assistant.\n"
-        "Your goal: Generate perfect SQL queries from natural language.\n\n"
+        "Your goal: Generate perfect SQL SELECT queries from natural language.\n\n"
         "STRICT GUIDELINES:\n"
-        "1. Response format: JSON ONLY with keys 'sql', 'explanation', 'confidence', 'suggested_visualization'.\n"
-        "2. Visualizations: 'table', 'bar_chart', 'line_chart', 'pie_chart', 'metric'.\n"
-        "3. Security: Generate SELECT statements ONLY. No mutations (INSERT/UPDATE/DELETE).\n"
-        "4. Schema: Only use tables and columns defined in the provided schema context.\n"
-        "5. Search: Use ILIKE for text searches to remain case-insensitive.\n"
+        "1. Security: Generate SELECT statements ONLY. No mutations (INSERT/UPDATE/DELETE/ALTER).\n"
+        "2. Schema: Only use tables and columns defined in the provided schema context.\n"
+        "3. Search: Use ILIKE for text searches to remain case-insensitive.\n"
     )
 )
 
@@ -159,9 +165,9 @@ async def api_generate_query(req: QueryRequest):
             # 1. Discover relevant tables
             async with conn.cursor() as cur:
                 if req.selected_tables:
-                    await cur.execute("SELECT oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = ANY(%s) AND c.relkind = 'r'", (req.selected_tables,))
+                    await cur.execute("SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = ANY(%s) AND c.relkind = 'r'", (req.selected_tables,))
                 else:
-                    await cur.execute("SELECT oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' LIMIT 15")
+                    await cur.execute("SELECT c.oid FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relkind = 'r' LIMIT 15")
                 oids = [row[0] for row in await cur.fetchall()]
             
             if not oids:
@@ -172,17 +178,12 @@ async def api_generate_query(req: QueryRequest):
             schema_context = render.render_tables(tables)
 
             # 3. Call AI
-            prompt = f"User Request: {req.prompt}\n\nSchema Context:\n{schema_context}\n\nDeliver the JSON payload."
+            prompt = f"User Request: {req.prompt}\n\nSchema Context:\n{schema_context}"
             result = await sql_agent.run(prompt)
             
-            # Extract JSON from potential markdown/text wrapper
-            content = result.data
-            match = re.search(r'\{.*\}', content, re.DOTALL)
-            if not match:
-                raise ValueError("AI failed to produce a structured JSON response.")
-            
-            sql_spec = json.loads(match.group(0))
-            sql_query = sql_spec.get("sql", "").strip()
+            sql_spec = result.output
+            sql_query = sql_spec.sql.strip()
+            print(f"[PG AI] Generated SQL: {sql_query}", file=sys.stderr, flush=True)
             
             if not sql_query:
                 return {"success": False, "error": "AI could not formulate a valid query."}
@@ -207,10 +208,10 @@ async def api_generate_query(req: QueryRequest):
                 return {
                     "success": True,
                     "query": sql_query,
-                    "explanation": sql_spec.get("explanation", ""),
-                    "chat_answer": sql_spec.get("explanation", ""), # Alias for frontend
-                    "confidence": sql_spec.get("confidence", 0.9),
-                    "visualization": sql_spec.get("suggested_visualization", "table"),
+                    "explanation": sql_spec.explanation,
+                    "chat_answer": sql_spec.explanation, # Alias for frontend
+                    "confidence": sql_spec.confidence,
+                    "visualization": sql_spec.suggested_visualization,
                     "results": {table_hint: dataset},
                     "tables": [table_hint] if dataset else []
                 }
@@ -228,9 +229,19 @@ async def meta(): return await api_get_schema()
 async def query(req: QueryRequest): return await api_generate_query(req)
 
 @app.get("/")
-def home(): return {"status": "PG AI Query Engine Online", "engine": "pydantic-ai + pgai-lib", "version": "3.2.0"}
+async def home():
+    """Serve the modern PWA frontend."""
+    return FileResponse("index.html")
+
+@app.get("/manifest.json")
+async def manifest():
+    return FileResponse("manifest.json")
+
+@app.get("/sw.js")
+async def sw():
+    return FileResponse("sw.js")
 
 if __name__ == "__main__":
     import uvicorn
     # Important: loop="asyncio" ensures it respects our policy
-    uvicorn.run(app, host="0.0.0.0", port=8000, loop="asyncio")
+    uvicorn.run(app, host="0.0.0.0", port=8001, loop="asyncio")

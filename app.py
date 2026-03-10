@@ -12,7 +12,7 @@ import time
 from urllib.error import URLError
 from urllib.request import urlopen
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = "http://127.0.0.1:8001"
 
 
 def api_is_up(timeout: float = 1.0) -> bool:

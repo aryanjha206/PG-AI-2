@@ -954,28 +954,43 @@
         }
 
         function renderResponse(data) {
-            let html = `<p>${data.chat_answer || 'Response generated.'}</p>`;
-            for (const [name, rows] of Object.entries(data.results || {})) {
-                if (Array.isArray(rows) && rows.length > 0) {
-                    const cols = Object.keys(rows[0]);
-                    const csvLines = [cols.join(',')];
-                    rows.forEach(r => csvLines.push(cols.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(',')));
-                    const csvData = encodeURIComponent(csvLines.join('\n'));
+            if (data.success === false) {
+                addMsg('ai', `⚠️ <b>Error:</b> ${data.error || 'Unknown backend error.'}`);
+                return;
+            }
 
-                    html += `
-                    <div class="data-table-wrap">
-                        <div class="data-table-header">
-                            <span>📊 ${name} (${rows.length} rows)</span>
-                            <button class="download-btn" onclick="downloadCSV('${name}', decodeURIComponent('${csvData}'))">Download CSV</button>
-                        </div>
-                        <div class="data-table-container">
-                            <table class="data-table">
-                                <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
-                                <tbody>${rows.slice(0, 200).map(r => `<tr>${cols.map(c => `<td>${r[c]}</td>`).join('')}</tr>`).join('')}</tbody>
-                            </table>
-                        </div>
-                        ${rows.length > 200 ? `<div style="padding:10px 16px; font-size:0.75rem; color:var(--text-muted); border-top:1px solid var(--border-color);">Showing first 200 of ${rows.length} rows. Download CSV to see all.</div>` : ''}
-                    </div>`;
+            let html = `<p>${data.chat_answer || 'Response generated.'}</p>`;
+            const results = data.results || {};
+            const hasData = Object.values(results).some(rows => Array.isArray(rows) && rows.length > 0);
+
+            if (!hasData) {
+                html += `<div style="margin-top:10px; padding:12px; background:var(--bg-tertiary); border-radius:8px; border-left:4px solid #f59e0b; font-size:0.9rem;">
+                    <b>Heads up:</b> The query executed successfully but returned 0 rows.
+                    <br><code style="font-size:0.75rem; color:var(--text-muted)">${data.query || ''}</code>
+                </div>`;
+            } else {
+                for (const [name, rows] of Object.entries(results)) {
+                    if (Array.isArray(rows) && rows.length > 0) {
+                        const cols = Object.keys(rows[0]);
+                        const csvLines = [cols.join(',')];
+                        rows.forEach(r => csvLines.push(cols.map(c => `"${String(r[c] ?? '').replace(/"/g, '""')}"`).join(',')));
+                        const csvData = encodeURIComponent(csvLines.join('\n'));
+
+                        html += `
+                        <div class="data-table-wrap">
+                            <div class="data-table-header">
+                                <span>📊 ${name} (${rows.length} rows)</span>
+                                <button class="download-btn" onclick="downloadCSV('${name}', decodeURIComponent('${csvData}'))">Download CSV</button>
+                            </div>
+                            <div class="data-table-container">
+                                <table class="data-table">
+                                    <thead><tr>${cols.map(c => `<th>${c}</th>`).join('')}</tr></thead>
+                                    <tbody>${rows.slice(0, 200).map(r => `<tr>${cols.map(c => `<td>${r[c]}</td>`).join('')}</tr>`).join('')}</tbody>
+                                </table>
+                            </div>
+                            ${rows.length > 200 ? `<div style="padding:10px 16px; font-size:0.75rem; color:var(--text-muted); border-top:1px solid var(--border-color);">Showing first 200 of ${rows.length} rows. Download CSV to see all.</div>` : ''}
+                        </div>`;
+                    }
                 }
             }
             addMsg('ai', html);
