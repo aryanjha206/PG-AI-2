@@ -1,0 +1,16 @@
+__pycache__
+*.pyc
+.git
+.venv
+env
+venv
+.ipynb_checkpoints
+app.py
+frontend.py
+verify_neon_only.py
+test_system_full.py
+test_g4f.py
+check_live_tables.py
+check_schema.py
+final_verify_api.py
+*.md

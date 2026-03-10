@@ -1,0 +1,21 @@
+{
+  "name": "PG AI Query Engine",
+  "short_name": "PG AI",
+  "description": "Natural Language to PostgreSQL AI Assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f0f",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2103/2103633.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
