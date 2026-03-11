@@ -1,6 +1,6 @@
 """
-PG AI Query Engine — Powered by pgai 0.12.1
-Natural Language to SQL using automatic schema discovery and AI generation.
+PG AI Query Engine — Powered by pgai and pgvector.
+Uses pgai semantic search to discover schema and generate SQL.
 """
 
 import os
@@ -117,6 +117,8 @@ sql_agent = Agent(
         "1. Security: Generate SELECT statements ONLY. No mutations (INSERT/UPDATE/DELETE/ALTER).\n"
         "2. Schema: Only use tables and columns defined in the provided schema context.\n"
         "3. Search: Use ILIKE for text searches to remain case-insensitive.\n"
+        "4. pgvector: If you see 'vector' type columns, use '<->' for similarity search when relevant.\n"
+        "5. pgai: Leverage pgai features for advanced data retrieval and processing.\n"
     )
 )
 

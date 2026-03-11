@@ -2,7 +2,6 @@ fastapi
 uvicorn
 psycopg[binary]
 requests
-g4f
 pydantic
 python-multipart
 pgai

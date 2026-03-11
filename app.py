@@ -35,13 +35,22 @@ def main():
         cwd=str(__import__("pathlib").Path(__file__).resolve().parent),
     )
 
-    for _ in range(30):
+    is_running = False
+    for _ in range(40):
+        if proc.poll() is not None:
+            print("[PG AI] Server process exited unexpectedly.")
+            return
         if api_is_up():
+            is_running = True
             break
         time.sleep(0.5)
 
-    print(f"[PG AI] Server running at {API_URL}")
-    webbrowser.open(API_URL)
+    if is_running:
+        print(f"[PG AI] Server running at {API_URL}")
+        webbrowser.open(API_URL)
+    else:
+        print("[PG AI] Server timed out starting.")
+        proc.terminate()
 
     try:
         proc.wait()
