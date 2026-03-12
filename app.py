@@ -15,7 +15,7 @@ from urllib.request import urlopen
 API_URL = "http://127.0.0.1:8001"
 
 
-def api_is_up(timeout: float = 1.0) -> bool:
+def api_is_up(timeout: float = 5.0) -> bool:
     try:
         with urlopen(f"{API_URL}/get-database-tables", timeout=timeout) as resp:
             return resp.status == 200

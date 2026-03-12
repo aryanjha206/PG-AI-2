@@ -2,13 +2,15 @@
 PG AI Query Engine — Powered by pgai and pgvector.
 Uses pgai semantic search to discover schema and generate SQL.
 """
-
 import os
 import re
 import json
 import asyncio
 import sys
 from typing import Any, Optional, Dict, List
+
+# BASE DIR for static files
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -32,7 +34,7 @@ from pgai.semantic_catalog import loader, render
 NEON_DB_URL = os.getenv("DATABASE_URL", "postgresql://neondb_owner:npg_5RdSgjpHCQ6P@ep-sweet-thunder-a1rqx5ar-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
 
 class Config:
-    BANNER = "PG AI Query Engine v3.3.0"
+    BANNER = "PG AI Query Engine v3.4.0"
     MODEL = "openai" 
     BASE_URL = "https://text.pollinations.ai/v1"
 
@@ -52,7 +54,7 @@ async def get_resolved_url() -> str:
         host = parsed.hostname
         if host and (".neon.tech" in host or ".aws.neon" in host):
             doh_url = f"https://dns.google/resolve?name={host}"
-            resp = await asyncio.to_thread(requests.get, doh_url, timeout=5)
+            resp = await asyncio.to_thread(requests.get, doh_url, timeout=10)
             data = resp.json()
             ip = next((a["data"] for a in data.get("Answer", []) if a["type"] == 1), None)
             if ip:
@@ -73,7 +75,7 @@ async def get_connection():
     """Returns an async psycopg connection to the database."""
     url = await get_resolved_url()
     try:
-        conn = await psycopg.AsyncConnection.connect(url, autocommit=True, connect_timeout=10)
+        conn = await psycopg.AsyncConnection.connect(url, autocommit=True, connect_timeout=15)
         return conn
     except Exception as e:
         print(f"[PG AI] Database connection failed: {e}")
@@ -84,10 +86,11 @@ async def get_connection():
 # ═══════════════════════════════════════════════════════════════
 from openai import AsyncOpenAI
 
-client = AsyncOpenAI(base_url=Config.BASE_URL, api_key='keyless')
+# Using the simplest reliable way for pydantic-ai to talk to custom OpenAI endpoints
 llm = OpenAIChatModel(
     model_name=Config.MODEL,
-    openai_client=client
+    base_url=Config.BASE_URL,
+    api_key='keyless'
 )
 
 class SQLResponse(BaseModel):
@@ -180,7 +183,7 @@ async def api_generate_query(req: QueryRequest):
                 oids = [row[0] for row in await cur.fetchall()]
             
             if not oids:
-                return {"success": False, "error": "No tables detected."}
+                return {"success": False, "error": "No tables detected. Ensure your database has tables in the public schema."}
 
             # 2. Preparation: Use pgai Python tools for rich schema context
             tables = await loader.load_tables(conn, oids, sample_size=3)
@@ -233,13 +236,13 @@ async def query(req: QueryRequest): return await api_generate_query(req)
 
 @app.get("/")
 async def home():
-    return FileResponse("index.html")
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
 @app.get("/manifest.json")
-async def manifest(): return FileResponse("manifest.json")
+async def manifest(): return FileResponse(os.path.join(BASE_DIR, "manifest.json"))
 
 @app.get("/sw.js")
-async def sw(): return FileResponse("sw.js")
+async def sw(): return FileResponse(os.path.join(BASE_DIR, "sw.js"))
 
 if __name__ == "__main__":
     import uvicorn

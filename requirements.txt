@@ -1,9 +1,9 @@
 fastapi
 uvicorn
-psycopg[binary]
+psycopg-binary
 requests
-pydantic
+pydantic>=2.0
 python-multipart
-pgai
+pgai[semantic-catalog]
 pydantic-ai
 openai
