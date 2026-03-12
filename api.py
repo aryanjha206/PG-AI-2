@@ -84,13 +84,15 @@ async def get_connection():
 # ═══════════════════════════════════════════════════════════════
 # AI AGENT
 # ═══════════════════════════════════════════════════════════════
-from openai import AsyncOpenAI
+from pydantic_ai.providers.openai import OpenAIProvider
 
 # Using the simplest reliable way for pydantic-ai to talk to custom OpenAI endpoints
 llm = OpenAIChatModel(
     model_name=Config.MODEL,
-    base_url=Config.BASE_URL,
-    api_key='keyless'
+    provider=OpenAIProvider(
+        base_url=Config.BASE_URL,
+        api_key='keyless'
+    )
 )
 
 class SQLResponse(BaseModel):
