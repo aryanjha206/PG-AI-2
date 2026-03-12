@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.env
+.python-version
+.idea/
+.vscode/
+.DS_Store
+*.log
+tmp/
+.ipynb_checkpoints/
+.gemini/
+.agents/
+.cursor/
